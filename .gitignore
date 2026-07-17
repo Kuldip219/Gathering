@@ -1,0 +1,5 @@
+gathering/db.sqlite3
+gathering/gathering/__pycache__/__init__.cpython-312.pyc
+gathering/gathering/__pycache__/settings.cpython-312.pyc
+gathering/gathering/__pycache__/urls.cpython-312.pyc
+gathering/gathering/__pycache__/wsgi.cpython-312.pyc
