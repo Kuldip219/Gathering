@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     # Custom apps
     'accounts',
     'posts',
+    'tailwind',
+    'theme',
 ]
 
 MIDDLEWARE = [

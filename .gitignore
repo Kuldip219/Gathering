@@ -4,3 +4,15 @@ gathering/gathering/__pycache__/settings.cpython-312.pyc
 gathering/gathering/__pycache__/urls.cpython-312.pyc
 gathering/gathering/__pycache__/wsgi.cpython-312.pyc
 *.pyc
+.venv/Lib/site-packages/_yaml/__init__.py
+*.pyd
+.venv/Lib/site-packages/arrow-1.4.0.dist-info/INSTALLER
+.venv/Lib/site-packages/arrow-1.4.0.dist-info/licenses/LICENSE
+.venv/Lib/site-packages/arrow-1.4.0.dist-info/METADATA
+.venv/Lib/site-packages/arrow-1.4.0.dist-info/RECORD
+*.exe
+*.py
+*.css
+*.html
+*.ps1
+/.venv
