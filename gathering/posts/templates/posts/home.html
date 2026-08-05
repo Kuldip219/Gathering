@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Home — Family Social{% endblock %}
+
+{% block content %}
+
+<nav class="bg-white border-b border-stone-200 sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+        <span class="text-lg font-semibold text-teal-700">Family Social</span>
+        <div class="flex items-center gap-4">
+            <a href="{% url 'profile' request.user.username %}" class="text-sm text-stone-600 hover:text-stone-900">
+                My profile
+            </a>
+            <a href="{% url 'create_post' %}" class="text-sm bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition">
+                + New post
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="max-w-2xl mx-auto py-6 px-4">
+
+    {% if family_members %}
+    <div class="flex gap-4 overflow-x-auto pb-4 mb-6 border-b border-stone-200">
+        {% for member in family_members %}
+            <a href="{% url 'profile' member.username %}" class="flex flex-col items-center flex-shrink-0 w-16">
+                <div class="w-14 h-14 rounded-full overflow-hidden bg-stone-200 flex items-center justify-center border-2 border-teal-100">
+                    {% if member.profile_picture %}
+                        <img src="{{ member.profile_picture.url }}" alt="{{ member.username }}" class="w-full h-full object-cover">
+                    {% else %}
+                        <span class="text-lg font-semibold text-stone-500">{{ member.username|first|upper }}</span>
+                    {% endif %}
+                </div>
+                <span class="text-xs text-stone-600 mt-1 truncate w-full text-center">{{ member.username }}</span>
+            </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if posts %}
+        <div class="space-y-6">
+            {% for post in posts %}
+                <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                    <div class="flex items-center gap-3 px-4 py-3">
+                        <div class="w-9 h-9 rounded-full overflow-hidden bg-stone-200 flex items-center justify-center flex-shrink-0">
+                            {% if post.author.profile_picture %}
+                                <img src="{{ post.author.profile_picture.url }}" alt="{{ post.author.username }}" class="w-full h-full object-cover">
+                            {% else %}
+                                <span class="text-sm font-semibold text-stone-500">{{ post.author.username|first|upper }}</span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'profile' post.author.username %}" class="text-sm font-medium text-stone-900 hover:underline">
+                            {{ post.author.username }}
+                        </a>
+                        <span class="text-xs text-stone-400 ml-auto">{{ post.created_at|timesince }} ago</span>
+                    </div>
+
+                    {% if post.image %}
+                        <img src="{{ post.image.url }}" alt="Post by {{ post.author.username }}" class="w-full max-h-[32rem] object-cover">
+                    {% endif %}
+
+                    <div class="px-4 py-3">
+                        {% if post.caption %}
+                            <p class="text-sm text-stone-700 mb-3">
+                                <span class="font-medium">{{ post.author.username }}</span> {{ post.caption }}
+                            </p>
+                        {% endif %}
+
+                        <form method="post" action="{% url 'toggle_like' post.id %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            {% if post.id in liked_post_ids %}
+                                <button type="submit" class="text-sm font-medium text-red-500">
+                                    ♥ Liked ({{ post.likes.all|length }})
+                                </button>
+                            {% else %}
+                                <button type="submit" class="text-sm font-medium text-stone-500 hover:text-red-500">
+                                    ♡ Like ({{ post.likes.all|length }})
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-stone-400 text-sm text-center py-12">No posts yet — be the first to share something!</p>
+    {% endif %}
+
+</div>
+{% endblock %}

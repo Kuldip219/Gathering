@@ -1,0 +1,25 @@
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Family Social{% endblock %}</title>
+    {% tailwind_css %}
+</head>
+<body class="bg-stone-100 min-h-screen font-sans text-stone-800">
+
+    {% if messages %}
+        <div class="max-w-2xl mx-auto mt-4 px-4 space-y-2">
+            {% for message in messages %}
+                <div class="px-4 py-2 rounded-lg bg-teal-50 text-teal-800 text-sm border border-teal-100">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+</body>
+</html>
