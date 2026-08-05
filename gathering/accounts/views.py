@@ -6,25 +6,26 @@ from .forms import ProfileEditForm
 
 # Create your views here.
 @login_required
-def edit_profile(request):
+def profile_redirect(request):
     return redirect('profile', username=request.user.username)
 
+
 @login_required
-def profile_redirect(request):
+def profile_view(request, username):
     profile_user = get_object_or_404(User, username=username)
     is_own_profile = profile_user == request.user
 
     form = None
     if is_own_profile:
         if request.method == 'POST':
-            form = ProfileEditForm(request.POST, instance=request.user)
+            form = ProfileEditForm(request.POST, request.FILES, instance=request.user)
             if form.is_valid():
                 form.save()
-                messages.success(request, 'Profile updated successfully.')
+                messages.success(request, "Profile updated.")
                 return redirect('profile', username=profile_user.username)
         else:
             form = ProfileEditForm(instance=profile_user)
-    
+
     context = {
         'profile_user': profile_user,
         'is_own_profile': is_own_profile,

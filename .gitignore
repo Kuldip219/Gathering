@@ -16,3 +16,8 @@ gathering/gathering/__pycache__/wsgi.cpython-312.pyc
 *.html
 *.ps1
 /.venv
+.freebuff/desktop-v2.db
+.freebuff/desktop-v2.db-shm
+.freebuff/desktop-v2.db-wal
+.freebuff/preview-0518077c-1e6e-491d-aff0-6856964d2767.log
+PROJECT_AUDIT.md

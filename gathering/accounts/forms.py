@@ -3,7 +3,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from .models import User
 
 TEXT_INPUT_CLASSES = (
-    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm "
     "focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
 )
 
@@ -17,7 +17,7 @@ class LoginForm(AuthenticationForm):
     )
 
 
-class ProfileForm(forms.ModelForm):
+class ProfileEditForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['bio', 'profile_picture']
