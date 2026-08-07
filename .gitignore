@@ -15,3 +15,4 @@ node_modules/
 .freebuff/desktop-v2.db-shm
 .freebuff/desktop-v2.db
 PROJECT_AUDIT.md
+gathering/backup_before_email_auth.json
