@@ -36,6 +36,17 @@
             </button>
         </form>
 
+        <div class="flex items-center gap-3 my-4">
+            <div class="flex-1 h-px bg-stone-200"></div>
+            <span class="text-xs text-stone-400">OR</span>
+            <div class="flex-1 h-px bg-stone-200"></div>
+        </div>
+
+        <a href="{% url 'google_login' %}"
+           class="w-full flex items-center justify-center gap-2 border border-stone-300 rounded-lg py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">
+            Sign in with Google
+        </a>
+
         <p class="text-center text-sm text-stone-500 mt-6">
             Don't have an account?
             <a href="{% url 'signup' %}" class="text-teal-600 font-medium hover:underline">Sign up</a>

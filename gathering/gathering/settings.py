@@ -10,10 +10,16 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env (google OAuth credentials, etc.)
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -42,12 +48,44 @@ INSTALLED_APPS = [
     'accounts',
     'posts',
     'tailwind',
-    'theme',    
+    'theme',
+
+    # Allauth (Google OAuth sign-in)
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
+    # Template helpers
+    'widget_tweaks',
 ]
 
 TAILWIND_APP_NAME = 'theme'
 
 INTERNAL_IPS = ['127.0.0.1']
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.environ.get('GOOGLE_OAUTH_CLIENT_ID'),
+            'secret': os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'),
+            'key': ''
+        },
+        'SCOPE': ['profile', 'email'],
+    }
+}
+
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 
 MIDDLEWARE = [
@@ -56,6 +94,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

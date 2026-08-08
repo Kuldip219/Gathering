@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.env
 db.sqlite3
 media/*
 !media/.gitkeep
@@ -16,3 +17,4 @@ node_modules/
 .freebuff/desktop-v2.db
 PROJECT_AUDIT.md
 gathering/backup_before_email_auth.json
+gathering/backup_before_email_auth_fixed.json
