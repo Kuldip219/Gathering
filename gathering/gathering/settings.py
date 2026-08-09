@@ -180,3 +180,7 @@ AUTH_USER_MODEL = 'accounts.User'
 LOGIN_URL = 'login'  # Redirect to login page if not authenticated
 LOGIN_REDIRECT_URL = 'home'  # Redirect to home after login
 LOGOUT_REDIRECT_URL = 'login'  # Redirect to login after logout
+
+# Emails (password reset etc.) print to the terminal in dev.
+# TODO: swap for real SMTP before deploying
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
