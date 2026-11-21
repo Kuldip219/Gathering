@@ -5,9 +5,7 @@ venv/
 env/
 .env
 db.sqlite3
-media/*
-!media/.gitkeep
-theme/static/css/dist/
+gathering/media/*
 node_modules/
 .DS_Store
 .freebuff/run.md
@@ -15,6 +13,5 @@ node_modules/
 .freebuff/desktop-v2.db-wal
 .freebuff/desktop-v2.db-shm
 .freebuff/desktop-v2.db
-PROJECT_AUDIT.md
 gathering/backup_before_email_auth.json
 gathering/backup_before_email_auth_fixed.json

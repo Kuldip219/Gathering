@@ -2,7 +2,7 @@ Django==6.0.7
 django-tailwind==4.5.0
 pillow==12.3.0
 pytailwindcss==0.3.1
-django-allauth
-python-dotenv
-PyJWT
-django-widget-tweaks
+django-allauth==65.19.0
+python-dotenv==1.2.2
+PyJWT==2.13.0
+django-widget-tweaks==1.5.1

@@ -13,9 +13,8 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         if not email:
             return
 
-        try:
-            existing_user = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user is None:
             return
 
         # An account with this email already exists (created via our normal
