@@ -15,3 +15,5 @@ node_modules/
 .freebuff/desktop-v2.db
 gathering/backup_before_email_auth.json
 gathering/backup_before_email_auth_fixed.json
+audit.md
+gathering/.env.example
