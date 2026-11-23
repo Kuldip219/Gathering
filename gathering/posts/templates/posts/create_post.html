@@ -20,6 +20,7 @@
             <div class="mb-4">
                 <label class="block text-sm font-medium text-stone-700 mb-1">Photo (optional)</label>
                 {{ form.image }}
+                {% if form.image.errors %}<p class="text-xs text-red-600 mt-1">{{ form.image.errors.0 }}</p>{% endif %}
             </div>
             <div class="mb-6">
                 <label class="block text-sm font-medium text-stone-700 mb-1">Caption</label>

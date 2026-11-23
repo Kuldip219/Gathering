@@ -1,5 +1,7 @@
 from django import forms
 
+from gathering.validators import validate_image_upload
+
 from .models import Post
 
 INPUT_CLASSES = (
@@ -9,6 +11,10 @@ INPUT_CLASSES = (
 
 
 class PostForm(forms.ModelForm):
+    # A plain FileField rather than ImageField so the shared validator owns
+    # the image checks and its message is what the user sees.
+    image = forms.FileField(required=False, validators=[validate_image_upload])
+
     class Meta:
         model = Post
         fields = ['image', 'caption']

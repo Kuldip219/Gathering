@@ -10,7 +10,12 @@ from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
-from gathering.testing import TemporaryMediaRootMixin, make_test_image
+from gathering.testing import (
+    TemporaryMediaRootMixin,
+    make_oversized_test_image,
+    make_test_image,
+    make_text_upload,
+)
 
 from .adapters import CustomSocialAccountAdapter
 
@@ -379,3 +384,97 @@ class PasswordResetTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Reset link invalid')
+
+
+class ProfilePictureValidationTests(TemporaryMediaRootMixin, TestCase):
+    """Profile uploads go through gathering.validators.validate_image_upload."""
+
+    def setUp(self):
+        self.alice = User.objects.create_user(
+            email='alice@example.com', username='alice', password=PASSWORD
+        )
+        self.profile_url = reverse('profile', kwargs={'username': 'alice'})
+        self.client.force_login(self.alice)
+
+    def _post(self, **data):
+        return self.client.post(self.profile_url, data)
+
+    def test_valid_jpeg_png_and_webp_are_accepted(self):
+        formats = [
+            ('JPEG', 'photo.jpg'),
+            ('PNG', 'photo.png'),
+            ('WEBP', 'photo.webp'),
+        ]
+        for image_format, name in formats:
+            with self.subTest(image_format=image_format):
+                response = self._post(
+                    bio=f'Uploaded {image_format}',
+                    profile_picture=make_test_image(name, image_format=image_format),
+                )
+
+                self.assertRedirects(response, self.profile_url)
+                self.alice.refresh_from_db()
+                self.assertTrue(
+                    self.alice.profile_picture.name.startswith('profile_pictures/')
+                )
+
+    def test_bio_edit_without_a_new_picture_still_works(self):
+        self._post(bio='First bio', profile_picture=make_test_image('first.png'))
+        self.alice.refresh_from_db()
+        kept_picture = self.alice.profile_picture.name
+
+        response = self._post(bio='Second bio')
+
+        self.assertRedirects(response, self.profile_url)
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.bio, 'Second bio')
+        self.assertEqual(self.alice.profile_picture.name, kept_picture)
+
+    def test_bad_image_leaves_the_old_picture_unchanged(self):
+        self._post(bio='Keep this', profile_picture=make_test_image('old.png'))
+        self.alice.refresh_from_db()
+        kept_picture = self.alice.profile_picture.name
+
+        response = self._post(bio='Should not save', profile_picture=make_text_upload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('profile_picture', response.context['form'].errors)
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.profile_picture.name, kept_picture)
+        self.assertEqual(self.alice.bio, 'Keep this')
+
+    def test_image_over_five_megabytes_is_rejected(self):
+        image = make_oversized_test_image()
+        self.assertGreater(image.size, 5 * 1024 * 1024)
+
+        response = self._post(bio='Too big', profile_picture=image)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.alice.profile_picture)
+        self.assertContains(response, '5 MB or smaller')
+
+    def test_text_file_named_photo_jpg_is_rejected(self):
+        response = self._post(profile_picture=make_text_upload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.alice.profile_picture)
+        self.assertContains(response, 'look like a photo')
+
+    def test_gif_is_rejected(self):
+        response = self._post(
+            profile_picture=make_test_image('anim.gif', image_format='GIF')
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.alice.profile_picture)
+        self.assertContains(response, 'Please upload a JPEG, PNG or WebP image.')
+
+    def test_image_over_the_pixel_limit_is_rejected(self):
+        with mock.patch('gathering.validators.MAX_IMAGE_PIXELS', 15):
+            response = self._post(
+                profile_picture=make_test_image('big.png', size=(4, 4))
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.alice.profile_picture)
+        self.assertContains(response, 'too large to process')

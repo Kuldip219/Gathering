@@ -3,6 +3,7 @@ open-redirect guard on the like endpoint."""
 
 import os
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
@@ -10,7 +11,12 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from gathering.testing import TemporaryMediaRootMixin, make_test_image
+from gathering.testing import (
+    TemporaryMediaRootMixin,
+    make_oversized_test_image,
+    make_test_image,
+    make_text_upload,
+)
 
 from .models import Like, Post
 
@@ -191,3 +197,80 @@ class ToggleLikeRedirectTests(TestCase):
         response = self.client.post(self.like_url, {'next': safe_url})
 
         self.assertEqual(response['Location'], safe_url)
+
+
+class ImageValidationTests(TemporaryMediaRootMixin, TestCase):
+    """Post uploads are checked by gathering.validators.validate_image_upload."""
+
+    def setUp(self):
+        self.alice = User.objects.create_user(
+            email='alice@example.com', username='alice', password=PASSWORD
+        )
+        self.create_url = reverse('create_post')
+        self.client.force_login(self.alice)
+
+    def _upload(self, image, caption=''):
+        return self.client.post(
+            self.create_url, {'caption': caption, 'image': image}
+        )
+
+    def test_valid_jpeg_png_and_webp_are_accepted(self):
+        formats = [
+            ('JPEG', 'photo.jpg'),
+            ('PNG', 'photo.png'),
+            ('WEBP', 'photo.webp'),
+        ]
+        for image_format, name in formats:
+            with self.subTest(image_format=image_format):
+                response = self._upload(
+                    make_test_image(name, image_format=image_format)
+                )
+                self.assertRedirects(response, reverse('home'))
+
+        self.assertEqual(Post.objects.count(), len(formats))
+        for post in Post.objects.all():
+            self.assertTrue(os.path.exists(post.image.path))
+
+    def test_image_over_five_megabytes_is_rejected(self):
+        image = make_oversized_test_image()
+        self.assertGreater(image.size, 5 * 1024 * 1024)
+
+        response = self._upload(image)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertIn('5 MB', str(response.context['form'].errors['image']))
+        self.assertContains(response, '5 MB or smaller')
+
+    def test_text_file_named_photo_jpg_is_rejected(self):
+        response = self._upload(make_text_upload('photo.jpg'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertContains(response, 'look like a photo')
+        self.assertIn('image', response.context['form'].errors)
+
+    def test_gif_is_rejected(self):
+        response = self._upload(make_test_image('anim.gif', image_format='GIF'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertContains(response, 'Please upload a JPEG, PNG or WebP image.')
+
+    def test_heic_file_gets_the_iphone_message(self):
+        response = self._upload(make_text_upload('IMG_0001.HEIC'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertContains(response, 'HEIC photos need to be converted first')
+
+    def test_image_over_the_pixel_limit_is_rejected(self):
+        # 4x4 = 16 pixels, so a limit of 15 trips the rule without building a
+        # genuinely huge image.
+        with mock.patch('gathering.validators.MAX_IMAGE_PIXELS', 15):
+            response = self._upload(make_test_image('big.png', size=(4, 4)))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertContains(response, 'too large to process')
+

@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
+from gathering.validators import validate_image_upload
+
 from .models import User
 
 TEXT_INPUT_CLASSES = (
@@ -59,6 +61,12 @@ class SignupForm(UserCreationForm):
 
 
 class ProfileEditForm(forms.ModelForm):
+    # A plain FileField rather than ImageField so the shared validator owns
+    # the image checks and its message is what the user sees.
+    profile_picture = forms.FileField(
+        required=False, validators=[validate_image_upload]
+    )
+
     class Meta:
         model = User
         fields = ['bio', 'profile_picture']
