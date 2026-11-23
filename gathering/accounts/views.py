@@ -44,7 +44,9 @@ def signup_view(request):
         form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            # Two backends are configured, so login() needs to be told which
+            # one authenticated this user (the form saved a fresh account).
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             return redirect('profile_redirect')
     else:
         form = SignupForm()

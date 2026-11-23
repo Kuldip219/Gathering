@@ -107,6 +107,13 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_ADAPTER = 'accounts.adapters.CustomSocialAccountAdapter'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 
+# allauth logs in with the username by default, which would let people sign in
+# with the username even though our login form only asks for an email. Accept
+# email only, and keep `email` required at signup (allauth's default is
+# optional) so allauth's signup-fields/login-methods check does not warn.
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

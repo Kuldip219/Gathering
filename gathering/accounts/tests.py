@@ -2,7 +2,6 @@
 and the allauth password-reset flow."""
 
 import re
-import unittest
 from unittest import mock
 from urllib.parse import urlsplit
 
@@ -33,28 +32,52 @@ def signup_payload(**overrides):
 
 
 class SignupTests(TestCase):
-    # BUG: with both ModelBackend and allauth's AuthenticationBackend in
-    # AUTHENTICATION_BACKENDS, `login(request, user)` in accounts/views.py
-    # raises ValueError ("You have multiple authentication backends
-    # configured and therefore must provide the `backend` argument") because
-    # the freshly created user has no `backend` attribute. Signing up
-    # therefore returns a 500 instead of logging the new user in.
-    @unittest.expectedFailure
     def test_signup_creates_user_and_logs_them_in(self):
         response = self.client.post(reverse('signup'), signup_payload())
 
         # The view redirects to 'profile_redirect' (/me/), which in turn
-        # redirects to the user's profile.
-        self.assertRedirects(response, reverse('profile_redirect'))
+        # redirects to the user's profile, so don't fetch that URL.
+        self.assertRedirects(
+            response, reverse('profile_redirect'), fetch_redirect_response=False
+        )
 
         user = User.objects.get(email='alice@example.com')
         self.assertEqual(user.username, 'alice')
         self.assertTrue(user.check_password(PASSWORD))
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
 
-    # BUG: same login()/backend crash as above - the user is saved but the
-    # request ends in a 500 before the redirect.
-    @unittest.expectedFailure
+    def test_signup_leaves_the_user_logged_in_on_the_home_feed(self):
+        self.client.post(reverse('signup'), signup_payload())
+
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'posts/home.html')
+        self.assertEqual(int(self.client.session['_auth_user_id']),
+                         User.objects.get(email='alice@example.com').pk)
+
+    def test_signup_user_can_log_out_and_back_in_with_email(self):
+        self.client.post(reverse('signup'), signup_payload())
+        user = User.objects.get(email='alice@example.com')
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+        response = self.client.post(reverse('logout'))
+
+        self.assertRedirects(response, reverse('login'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+        # Log in the way a real user does: email as the identifier.
+        response = self.client.post(
+            reverse('login'),
+            {'username': 'alice@example.com', 'password': PASSWORD},
+        )
+
+        self.assertRedirects(response, reverse('home'))
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+
     def test_email_is_stored_lowercased(self):
         self.client.post(
             reverse('signup'),
@@ -130,12 +153,6 @@ class LoginTests(TestCase):
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         self.assertNotIn('_auth_user_id', self.client.session)
 
-    # BUG: the form is labelled "Email" and its docstring says allauth
-    # authenticate() treats the value as an email, but ACCOUNT_LOGIN_METHODS
-    # is not set, so allauth's default is username-only. Its
-    # AuthenticationBackend (the second configured backend) then happily logs
-    # the user in with their username.
-    @unittest.expectedFailure
     def test_username_alone_is_not_a_login_identifier(self):
         response = self.client.post(
             reverse('login'), {'username': 'alice', 'password': PASSWORD}
