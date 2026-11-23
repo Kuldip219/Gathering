@@ -478,3 +478,9 @@ class ProfilePictureValidationTests(TemporaryMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(self.alice.profile_picture)
         self.assertContains(response, 'too large to process')
+
+    def test_picture_input_accepts_image_types(self):
+        response = self.client.get(self.profile_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'accept="image/jpeg,image/png,image/webp"')

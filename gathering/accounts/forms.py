@@ -64,7 +64,12 @@ class ProfileEditForm(forms.ModelForm):
     # A plain FileField rather than ImageField so the shared validator owns
     # the image checks and its message is what the user sees.
     profile_picture = forms.FileField(
-        required=False, validators=[validate_image_upload]
+        required=False,
+        validators=[validate_image_upload],
+        # FileField does not add this itself; ImageField used to.
+        widget=forms.ClearableFileInput(
+            attrs={'accept': 'image/jpeg,image/png,image/webp'}
+        ),
     )
 
     class Meta:

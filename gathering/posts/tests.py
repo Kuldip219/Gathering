@@ -274,3 +274,9 @@ class ImageValidationTests(TemporaryMediaRootMixin, TestCase):
         self.assertEqual(Post.objects.count(), 0)
         self.assertContains(response, 'too large to process')
 
+    def test_image_input_accepts_image_types(self):
+        response = self.client.get(self.create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'accept="image/jpeg,image/png,image/webp"')
+
