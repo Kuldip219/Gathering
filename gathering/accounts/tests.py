@@ -484,3 +484,43 @@ class ProfilePictureValidationTests(TemporaryMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'accept="image/jpeg,image/png,image/webp"')
+
+
+class AccountMenuTests(TestCase):
+    """The account menu in the feed's top navigation."""
+
+    def setUp(self):
+        self.alice = User.objects.create_user(
+            email='alice@example.com', username='alice', password=PASSWORD
+        )
+
+    def test_logged_in_home_shows_the_menu_with_links_and_logout_form(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="account-menu-button"')
+        self.assertContains(response, 'id="account-menu-panel"')
+        self.assertContains(response, f'href="{reverse("profile_redirect")}"')
+        self.assertContains(
+            response, f'href="{reverse("profile", kwargs={"username": "alice"})}"'
+        )
+        # Log out must be a POST form carrying a CSRF token.
+        self.assertContains(response, f'action="{reverse("logout")}"')
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+
+    def test_anonymous_login_page_has_no_account_menu(self):
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'account-menu-button')
+        self.assertNotContains(response, 'account-menu-panel')
+
+    def test_logout_post_from_the_menu_logs_the_user_out(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.post(reverse('logout'))
+
+        self.assertRedirects(response, reverse('login'))
+        self.assertNotIn('_auth_user_id', self.client.session)

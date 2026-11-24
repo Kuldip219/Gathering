@@ -29,15 +29,6 @@
             {% endif %}
         </div>
 
-        {% if is_own_profile %}
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit"
-                        class="text-sm text-red-600 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-50 transition flex-shrink-0">
-                    Log out
-                </button>
-            </form>
-        {% endif %}
     </div>
 
     {% if is_own_profile %}
