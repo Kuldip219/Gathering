@@ -745,3 +745,86 @@ class ChangeEmailTests(TestCase):
         )
         self.assertEqual(old_login.status_code, 200)
         self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_invalid_email_is_rejected(self):
+        self.client.force_login(self.alice)
+
+        response = self._post(new_email='not-an-email')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('new_email', response.context['form'].errors)
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice@example.com')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_password_reset_follows_the_new_address_and_not_the_old_one(self):
+        # A Google-style account: allauth keeps the primary address in its own
+        # table, which is what password reset resolves recipients through.
+        EmailAddress.objects.create(
+            user=self.alice, email='alice@example.com', primary=True, verified=True
+        )
+        self.client.force_login(self.alice)
+        self._post()
+        self.client.logout()
+        mail.outbox = []
+
+        new_reset = self.client.post(
+            reverse('account_reset_password'), {'email': 'alice.new@example.com'}
+        )
+
+        self.assertRedirects(new_reset, reverse('account_reset_password_done'))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['alice.new@example.com'])
+
+        self.assertEqual(
+            list(
+                EmailAddress.objects.filter(user=self.alice).values_list(
+                    'email', 'primary'
+                )
+            ),
+            [('alice.new@example.com', True)],
+        )
+
+        # A genuinely unknown address is the yardstick for "no reset happened".
+        mail.outbox = []
+        self.client.post(
+            reverse('account_reset_password'), {'email': 'nobody@example.com'}
+        )
+        unknown_subjects = [m.subject for m in mail.outbox]
+
+        mail.outbox = []
+        old_reset = self.client.post(
+            reverse('account_reset_password'), {'email': 'alice@example.com'}
+        )
+
+        self.assertRedirects(old_reset, reverse('account_reset_password_done'))
+        self.assertEqual([m.subject for m in mail.outbox], unknown_subjects)
+        self.assertEqual([m.to for m in mail.outbox], [['alice@example.com']])
+        # Above all: no password-reset link was sent to the old address.
+        self.assertFalse(
+            any(
+                PasswordResetTests.RESET_URL_RE.search(message.body)
+                for message in mail.outbox
+            )
+        )
+
+    def test_a_user_cannot_change_another_users_email(self):
+        self.client.force_login(self.alice)
+
+        # Extra fields trying to point the edit at bob must be ignored.
+        response = self.client.post(
+            self.url,
+            {
+                'new_email': 'alice.moved@example.com',
+                'current_password': PASSWORD,
+                'user': self.bob.pk,
+                'user_id': self.bob.pk,
+                'pk': self.bob.pk,
+            },
+        )
+
+        self.assertRedirects(response, self.profile_url)
+        self.bob.refresh_from_db()
+        self.alice.refresh_from_db()
+        self.assertEqual(self.bob.email, 'bob@example.com')
+        self.assertEqual(self.alice.email, 'alice.moved@example.com')
