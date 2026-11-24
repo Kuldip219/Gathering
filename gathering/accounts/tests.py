@@ -5,6 +5,7 @@ import re
 from unittest import mock
 from urllib.parse import urlsplit
 
+from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase
@@ -535,6 +536,34 @@ class AccountMenuTests(TestCase):
 
         self.assertAccountMenu(self.client.get(reverse('create_post')))
 
+    def test_navbar_wordmark_links_to_the_feed(self):
+        self.client.force_login(self.alice)
+        pages = [
+            reverse('home'),
+            reverse('profile', kwargs={'username': 'alice'}),
+            reverse('create_post'),
+        ]
+        expected = r'<a href="%s"[^>]*>\s*Gathering\s*</a>' % re.escape(
+            reverse('home')
+        )
+
+        for url in pages:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertRegex(response.content.decode(), expected)
+
+    def test_profile_page_has_no_back_to_feed_link(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.get(
+            reverse('profile', kwargs={'username': 'alice'})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Back to feed')
+
     def test_anonymous_login_page_has_no_account_menu(self):
         response = self.client.get(reverse('login'))
 
@@ -555,4 +584,164 @@ class AccountMenuTests(TestCase):
         response = self.client.post(reverse('logout'))
 
         self.assertRedirects(response, reverse('login'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+
+class ChangeEmailTests(TestCase):
+    """Changing the login email from /account/email/."""
+
+    def setUp(self):
+        self.alice = User.objects.create_user(
+            email='alice@example.com', username='alice', password=PASSWORD
+        )
+        self.bob = User.objects.create_user(
+            email='bob@example.com', username='bob', password=PASSWORD
+        )
+        self.url = reverse('change_email')
+        self.profile_url = reverse('profile', kwargs={'username': 'alice'})
+
+    def _post(self, **overrides):
+        data = {
+            'new_email': 'alice.new@example.com',
+            'current_password': PASSWORD,
+        }
+        data.update(overrides)
+        return self.client.post(self.url, data)
+
+    def test_anonymous_get_and_post_redirect_to_login(self):
+        get_response = self.client.get(self.url)
+        post_response = self.client.post(
+            self.url, {'new_email': 'x@example.com', 'current_password': PASSWORD}
+        )
+
+        self.assertRedirects(
+            get_response, f'{reverse("login")}?next={self.url}', fetch_redirect_response=False
+        )
+        self.assertRedirects(
+            post_response, f'{reverse("login")}?next={self.url}', fetch_redirect_response=False
+        )
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice@example.com')
+
+    def test_page_renders_and_account_menu_links_to_it(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{self.url}"')
+        self.assertContains(response, 'Edit email')
+        self.assertContains(response, 'Current password')
+
+    def test_successful_change_updates_email_notifies_old_address_and_keeps_login(self):
+        self.client.force_login(self.alice)
+
+        response = self._post(new_email='Alice.New@Example.COM ')
+
+        self.assertRedirects(response, self.profile_url)
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice.new@example.com')
+
+        self.assertEqual(len(mail.outbox), 1)
+        notice = mail.outbox[0]
+        self.assertEqual(notice.to, ['alice@example.com'])
+        self.assertIn('alice.new@example.com', notice.body)
+        self.assertNotIn(PASSWORD, notice.body)
+
+        # The session must survive the change.
+        self.assertEqual(self.client.get(reverse('home')).status_code, 200)
+
+    def test_wrong_password_changes_nothing(self):
+        self.client.force_login(self.alice)
+
+        response = self._post(current_password='not-the-password')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('current_password', response.context['form'].errors)
+        self.assertContains(response, 'not correct')
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice@example.com')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_missing_password_is_rejected_for_users_who_have_one(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.post(self.url, {'new_email': 'alice.new@example.com'})
+
+        self.assertEqual(response.status_code, 200)
+        # The password field is required whenever the account has a password.
+        self.assertIn('current_password', response.context['form'].errors)
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice@example.com')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_email_used_by_another_user_is_rejected_case_insensitively(self):
+        self.client.force_login(self.alice)
+
+        response = self._post(new_email='BOB@Example.com')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'A user with that email already exists.')
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice@example.com')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_same_email_is_rejected(self):
+        self.client.force_login(self.alice)
+
+        response = self._post(new_email='ALICE@example.com')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already your login email')
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice@example.com')
+
+    def test_google_only_account_does_not_need_a_password(self):
+        self.alice.set_unusable_password()
+        self.alice.save()
+        self.client.force_login(self.alice)
+
+        page = self.client.get(self.url)
+        response = self.client.post(self.url, {'new_email': 'alice.new@example.com'})
+
+        self.assertNotContains(page, 'Current password')
+        self.assertContains(page, 'signs in with Google')
+        self.assertRedirects(response, self.profile_url)
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.email, 'alice.new@example.com')
+
+    def test_allauth_email_address_rows_follow_the_change(self):
+        EmailAddress.objects.create(
+            user=self.alice, email='alice@example.com', primary=True, verified=True
+        )
+        self.client.force_login(self.alice)
+
+        response = self._post()
+
+        self.assertRedirects(response, self.profile_url)
+        remaining = list(EmailAddress.objects.filter(user=self.alice))
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0].email, 'alice.new@example.com')
+        self.assertTrue(remaining[0].primary)
+        self.assertFalse(
+            EmailAddress.objects.filter(email__iexact='alice@example.com').exists()
+        )
+
+    def test_login_with_new_email_works_and_old_email_no_longer_does(self):
+        self.client.force_login(self.alice)
+        self._post()
+        self.client.logout()
+
+        new_login = self.client.post(
+            reverse('login'),
+            {'username': 'alice.new@example.com', 'password': PASSWORD},
+        )
+        self.assertRedirects(new_login, reverse('home'))
+
+        self.client.logout()
+        old_login = self.client.post(
+            reverse('login'),
+            {'username': 'alice@example.com', 'password': PASSWORD},
+        )
+        self.assertEqual(old_login.status_code, 200)
         self.assertNotIn('_auth_user_id', self.client.session)

@@ -1,6 +1,7 @@
 <nav class="bg-white border-b border-stone-200 sticky top-0 z-10">
     <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-        <span class="text-lg font-semibold text-teal-700">Gathering</span>
+        <a href="{% url 'home' %}"
+           class="text-lg font-semibold text-teal-700 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">Gathering</a>
         <div class="flex items-center gap-3">
             <a href="{% url 'create_post' %}" class="text-sm bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition">
                 + New post
@@ -31,6 +32,10 @@
                     <a href="{% url 'profile' request.user.username %}"
                        class="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none">
                         Edit profile
+                    </a>
+                    <a href="{% url 'change_email' %}"
+                       class="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none">
+                        Edit email
                     </a>
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}

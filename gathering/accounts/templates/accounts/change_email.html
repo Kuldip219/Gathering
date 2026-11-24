@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Change login email — Gathering{% endblock %}
+
+{% block content %}
+
+{% include "partials/navbar.html" %}
+
+<div class="max-w-lg mx-auto py-10 px-4">
+    <div class="bg-white shadow-sm rounded-2xl p-6 border border-stone-200">
+        <h1 class="text-lg font-semibold text-stone-900 mb-1">Change login email</h1>
+        <p class="text-sm text-stone-500 mb-4">
+            This is the address you log in with and the one password resets go to.
+        </p>
+
+        {% if not has_password %}
+            <p class="mb-4 text-sm text-stone-700 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+                This account signs in with Google, so there is no password to confirm.
+            </p>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label for="{{ form.new_email.id_for_label }}" class="block text-sm font-medium text-stone-700 mb-1">
+                    New email
+                </label>
+                {{ form.new_email }}
+                {% if form.new_email.errors %}<p class="text-xs text-red-600 mt-1">{{ form.new_email.errors.0 }}</p>{% endif %}
+            </div>
+
+            {% if has_password %}
+                <div class="mb-6">
+                    <label for="{{ form.current_password.id_for_label }}" class="block text-sm font-medium text-stone-700 mb-1">
+                        Current password
+                    </label>
+                    {{ form.current_password }}
+                    {% if form.current_password.errors %}<p class="text-xs text-red-600 mt-1">{{ form.current_password.errors.0 }}</p>{% endif %}
+                </div>
+            {% endif %}
+
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="bg-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition">
+                    Update email
+                </button>
+                <a href="{% url 'profile' request.user.username %}"
+                   class="text-sm text-stone-500 px-4 py-2 hover:text-stone-800">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -11,6 +11,7 @@ urlpatterns = [
     ),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('me/', views.profile_redirect, name='profile_redirect'),
+    path('account/email/', views.change_email_view, name='change_email'),
     path('profile/<str:username>/', views.profile_view, name='profile'),
     path('signup/', views.signup_view, name='signup'),
 ]

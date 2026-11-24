@@ -1,3 +1,4 @@
+from allauth.account.models import EmailAddress
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
@@ -58,6 +59,53 @@ class SignupForm(UserCreationForm):
         self.fields['password2'].label = "Confirm password"
         self.fields['password1'].widget.attrs.update({'class': TEXT_INPUT_CLASSES})
         self.fields['password2'].widget.attrs.update({'class': TEXT_INPUT_CLASSES})
+
+
+class ChangeEmailForm(forms.Form):
+    """Change the login email, confirmed with the current password."""
+
+    new_email = forms.EmailField(
+        label="New email",
+        widget=forms.EmailInput(attrs={'class': TEXT_INPUT_CLASSES, 'autofocus': True}),
+    )
+    current_password = forms.CharField(
+        label="Current password",
+        widget=forms.PasswordInput(attrs={'class': TEXT_INPUT_CLASSES}),
+        required=False,
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+        # Accounts that sign in with Google have no usable password, so there
+        # is nothing to confirm. This branch must stay unreachable for anyone
+        # who does have a password, hence the field is only dropped here.
+        if user is None or not user.has_usable_password():
+            self.fields.pop('current_password')
+        else:
+            self.fields['current_password'].required = True
+
+    def clean_new_email(self):
+        # Same normalisation as SignupForm.clean_email.
+        email = (self.cleaned_data.get('new_email') or '').strip().lower()
+        if self.user is not None and email == (self.user.email or '').lower():
+            raise forms.ValidationError("That is already your login email.")
+        if User.objects.filter(email__iexact=email).exclude(pk=self.user.pk).exists():
+            # Same wording Django's UserCreationForm uses at signup.
+            raise forms.ValidationError("A user with that email already exists.")
+        # An allauth EmailAddress row owned by somebody else would make
+        # password reset and Google linking ambiguous.
+        if EmailAddress.objects.filter(email__iexact=email).exclude(user=self.user).exists():
+            raise forms.ValidationError("A user with that email already exists.")
+        return email
+
+    def clean_current_password(self):
+        password = self.cleaned_data.get('current_password')
+        if password is None or self.user is None:
+            return password
+        if not self.user.check_password(password):
+            raise forms.ValidationError("That password is not correct.")
+        return password
 
 
 class ProfileEditForm(forms.ModelForm):
