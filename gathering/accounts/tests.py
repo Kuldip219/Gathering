@@ -487,18 +487,17 @@ class ProfilePictureValidationTests(TemporaryMediaRootMixin, TestCase):
 
 
 class AccountMenuTests(TestCase):
-    """The account menu in the feed's top navigation."""
+    """The account menu, shared by every logged-in page via the nav partial."""
 
     def setUp(self):
         self.alice = User.objects.create_user(
             email='alice@example.com', username='alice', password=PASSWORD
         )
+        self.bob = User.objects.create_user(
+            email='bob@example.com', username='bob', password=PASSWORD
+        )
 
-    def test_logged_in_home_shows_the_menu_with_links_and_logout_form(self):
-        self.client.force_login(self.alice)
-
-        response = self.client.get(reverse('home'))
-
+    def assertAccountMenu(self, response):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="account-menu-button"')
         self.assertContains(response, 'id="account-menu-panel"')
@@ -510,8 +509,41 @@ class AccountMenuTests(TestCase):
         self.assertContains(response, f'action="{reverse("logout")}"')
         self.assertContains(response, 'name="csrfmiddlewaretoken"')
 
+    def test_logged_in_home_shows_the_menu_with_links_and_logout_form(self):
+        self.client.force_login(self.alice)
+
+        self.assertAccountMenu(self.client.get(reverse('home')))
+
+    def test_own_profile_page_shows_the_menu(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.get(
+            reverse('profile', kwargs={'username': 'alice'})
+        )
+
+        self.assertAccountMenu(response)
+
+    def test_another_users_profile_page_shows_the_menu(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.get(reverse('profile', kwargs={'username': 'bob'}))
+
+        self.assertAccountMenu(response)
+
+    def test_create_post_page_shows_the_menu(self):
+        self.client.force_login(self.alice)
+
+        self.assertAccountMenu(self.client.get(reverse('create_post')))
+
     def test_anonymous_login_page_has_no_account_menu(self):
         response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'account-menu-button')
+        self.assertNotContains(response, 'account-menu-panel')
+
+    def test_signup_page_has_no_account_menu(self):
+        response = self.client.get(reverse('signup'))
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'account-menu-button')

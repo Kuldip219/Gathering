@@ -3,6 +3,9 @@
 {% block title %}{{ profile_user.username }} — Gathering{% endblock %}
 
 {% block content %}
+
+{% include "partials/navbar.html" %}
+
 <div class="max-w-2xl mx-auto py-6 px-4">
 
     <a href="{% url 'home' %}" class="text-sm text-stone-500 hover:text-stone-800">← Back to feed</a>
